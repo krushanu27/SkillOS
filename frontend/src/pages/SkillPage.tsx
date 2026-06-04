@@ -31,10 +31,21 @@ export default function SkillPage() {
 
         try {
             const fileContext = uploadedFile
-                ? `\n\nUploaded file: ${uploadedFile.original_name}\nSaved path: ${uploadedFile.path}`
+                ? `
+
+Uploaded File:
+Name: ${uploadedFile.original_name}
+Saved Path: ${uploadedFile.path}
+Size: ${uploadedFile.size_bytes} bytes
+
+Extracted File Content:
+${uploadedFile.extracted_text || "No readable text extracted from this file."}
+`
                 : "";
 
-            const result = await runSkill(id || "", input + fileContext);
+            const finalInput = `${input}${fileContext}`;
+
+            const result = await runSkill(id || "", finalInput);
             setResponse(result.response);
         } finally {
             setLoading(false);
@@ -56,8 +67,10 @@ export default function SkillPage() {
             <div style={{ marginBottom: 16 }}>
                 <input
                     type="file"
+                    accept=".txt,.pdf,.docx"
                     onChange={(e) => {
                         setSelectedFile(e.target.files?.[0] || null);
+                        setUploadedFile(null);
                     }}
                 />
 
@@ -75,6 +88,13 @@ export default function SkillPage() {
                     <strong>Uploaded:</strong> {uploadedFile.original_name}
                     <br />
                     <small>{uploadedFile.size_bytes} bytes</small>
+                    <br />
+                    <small>
+                        Extracted text:{" "}
+                        {uploadedFile.extracted_text
+                            ? `${uploadedFile.extracted_text.length} characters`
+                            : "No readable text found"}
+                    </small>
                 </div>
             )}
 
