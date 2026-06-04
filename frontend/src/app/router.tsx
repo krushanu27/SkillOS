@@ -6,6 +6,7 @@ import {
 
 import DashboardPage from "../pages/DashboardPage";
 import SkillPage from "../pages/SkillPage";
+import HistoryPage from "../pages/HistoryPage";
 
 export default function AppRouter() {
     return (
@@ -19,6 +20,11 @@ export default function AppRouter() {
                 <Route
                     path="/skill/:id"
                     element={<SkillPage />}
+                />
+
+                <Route
+                    path="/history"
+                    element={<HistoryPage />}
                 />
             </Routes>
         </BrowserRouter>

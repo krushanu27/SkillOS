@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from app.skills.history_store import save_skill_run
+
 SKILLS = [
     {
         "id": "resume_copilot",
@@ -74,8 +76,6 @@ def load_prompt(skill_id: str) -> str:
 def run_skill(skill_id: str, user_input: str):
     system_prompt = load_prompt(skill_id)
 
-    # Temporary mock response.
-    # Later we will connect OpenAI API here.
     response = f"""
 Skill Used: {skill_id}
 
@@ -89,7 +89,15 @@ AI Response:
 This is a placeholder response. OpenAI integration comes next, because apparently apps need brains too.
 """
 
+    clean_response = response.strip()
+
+    save_skill_run(
+        skill_id=skill_id,
+        prompt=user_input,
+        response=clean_response,
+    )
+
     return {
         "skill_id": skill_id,
-        "response": response.strip(),
+        "response": clean_response,
     }

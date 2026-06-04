@@ -14,7 +14,28 @@ export default function DashboardPage() {
 
     return (
         <div style={{ padding: 24 }}>
-            <h1>SkillOS</h1>
+            <div
+                style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: 24,
+                }}
+            >
+                <h1 style={{ margin: 0 }}>SkillOS</h1>
+
+                <Link
+                    to="/history"
+                    style={{
+                        border: "1px solid #444",
+                        padding: "10px 14px",
+                        borderRadius: 8,
+                        textDecoration: "none",
+                    }}
+                >
+                    View Run History
+                </Link>
+            </div>
 
             <div
                 style={{

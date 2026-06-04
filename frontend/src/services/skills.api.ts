@@ -1,4 +1,5 @@
 import axios from "axios";
+import type { SkillRunHistory } from "../types/skill";
 
 const api = axios.create({
     baseURL: "http://127.0.0.1:8000",
@@ -20,3 +21,8 @@ export const runSkill = async (
 
     return response.data;
 };
+
+export async function getSkillRunHistory(): Promise<SkillRunHistory[]> {
+    const response = await api.get("/skills/history");
+    return response.data;
+}
