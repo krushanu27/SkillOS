@@ -1,6 +1,12 @@
+import os
 from pathlib import Path
 
+import httpx
+
 from app.skills.history_store import save_skill_run
+
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma3:4b")
 
 SKILLS = [
     {
@@ -57,6 +63,13 @@ SKILLS = [
         "category": "Creative",
         "description": "Plan Instagram reels, lyrics placement, captions, and editing flow.",
     },
+    {
+        "id": "document_summarizer",
+        "name": "Document Summarizer",
+        "category": "AI",
+        "description": "Summarizes uploaded text documents using local Ollama AI.",
+        "input_type": "file",
+    },
 ]
 
 
@@ -73,31 +86,98 @@ def load_prompt(skill_id: str) -> str:
     return prompt_path.read_text(encoding="utf-8")
 
 
-def run_skill(skill_id: str, user_input: str):
-    system_prompt = load_prompt(skill_id)
+def extract_saved_path(user_input: str) -> str | None:
+    marker = "Saved Path:"
 
-    response = f"""
-Skill Used: {skill_id}
+    if marker not in user_input:
+        return None
 
-System Prompt:
+    after_marker = user_input.split(marker, 1)[1].strip()
+    return after_marker.splitlines()[0].strip()
+
+
+async def call_ollama(system_prompt: str, user_input: str) -> str:
+    final_prompt = f"""
+System Instructions:
 {system_prompt}
 
-User Input:
+User Request:
 {user_input}
 
-AI Response:
-This is a placeholder response. OpenAI integration comes next, because apparently apps need brains too.
+Answer clearly, practically, and in a structured way.
 """
 
-    clean_response = response.strip()
+    payload = {
+        "model": OLLAMA_MODEL,
+        "prompt": final_prompt,
+        "stream": False,
+    }
+
+    async with httpx.AsyncClient(timeout=180.0) as client:
+        response = await client.post(
+            f"{OLLAMA_BASE_URL}/api/generate",
+            json=payload,
+        )
+        response.raise_for_status()
+
+    data = response.json()
+    return data.get("response", "").strip()
+
+
+async def run_skill(skill_id: str, user_input: str):
+    if skill_id == "document_summarizer":
+        from app.skills.document_summarizer import run_document_summarizer
+
+        file_path = extract_saved_path(user_input)
+
+        if not file_path:
+            response_text = "Error: No uploaded file path found. Use format: Saved Path: uploads/filename.txt"
+        else:
+            result = await run_document_summarizer(file_path)
+
+            if result.get("success"):
+                response_text = result["summary"]
+            else:
+                response_text = f"Error summarizing document: {result.get('error')}"
+
+        save_skill_run(
+            skill_id=skill_id,
+            prompt=user_input,
+            response=response_text,
+        )
+
+        return {
+            "skill_id": skill_id,
+            "response": response_text,
+        }
+
+    system_prompt = load_prompt(skill_id)
+
+    try:
+        response_text = await call_ollama(
+            system_prompt=system_prompt,
+            user_input=user_input,
+        )
+    except Exception as error:
+        response_text = f"""
+Ollama integration failed.
+
+Error:
+{str(error)}
+
+Check:
+1. Ollama is running
+2. Model is installed: {OLLAMA_MODEL}
+3. Ollama URL is reachable: {OLLAMA_BASE_URL}
+""".strip()
 
     save_skill_run(
         skill_id=skill_id,
         prompt=user_input,
-        response=clean_response,
+        response=response_text,
     )
 
     return {
         "skill_id": skill_id,
-        "response": clean_response,
+        "response": response_text,
     }

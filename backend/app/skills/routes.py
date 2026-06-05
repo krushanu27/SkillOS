@@ -16,11 +16,12 @@ class SkillRunRequest(BaseModel):
 def list_skills():
     return get_all_skills()
 
+
 @router.get("/history")
 def get_history():
     return get_skill_run_history()
 
 
 @router.post("/run")
-def execute_skill(payload: SkillRunRequest):
-    return run_skill(payload.skill_id, payload.user_input)
+async def execute_skill(payload: SkillRunRequest):
+    return await run_skill(payload.skill_id, payload.user_input)
