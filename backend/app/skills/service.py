@@ -7,6 +7,7 @@ from app.skills.history_store import save_skill_run
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma3:4b")
+MAX_USER_INPUT_CHARS = 12000
 
 SKILLS = [
     {
@@ -96,15 +97,40 @@ def extract_saved_path(user_input: str) -> str | None:
     return after_marker.splitlines()[0].strip()
 
 
+def trim_user_input(user_input: str) -> str:
+    if len(user_input) <= MAX_USER_INPUT_CHARS:
+        return user_input
+
+    head_size = MAX_USER_INPUT_CHARS // 2
+    tail_size = MAX_USER_INPUT_CHARS // 2
+
+    head = user_input[:head_size]
+    tail = user_input[-tail_size:]
+
+    return f"""
+{head}
+
+[CONTENT TRIMMED BY SKILLOS]
+The uploaded document was too long to send fully to the local AI model in one request.
+The beginning and ending sections are included for analysis.
+
+{tail}
+""".strip()
+
+
 async def call_ollama(system_prompt: str, user_input: str) -> str:
+    safe_user_input = trim_user_input(user_input)
+
     final_prompt = f"""
 System Instructions:
 {system_prompt}
 
 User Request:
-{user_input}
+{safe_user_input}
 
 Answer clearly, practically, and in a structured way.
+Do not reply with only "Okay".
+If the input contains extracted document content, summarize and analyze it using the available text.
 """
 
     payload = {
@@ -121,7 +147,16 @@ Answer clearly, practically, and in a structured way.
         response.raise_for_status()
 
     data = response.json()
-    return data.get("response", "").strip()
+    result = data.get("response", "").strip()
+
+    if not result or result.lower() == "okay":
+        return (
+            "The AI returned an incomplete response. "
+            "This usually happens when the uploaded document is too long for the current local model context. "
+            "Try a shorter document or use the Document Summarizer skill after chunking support is added."
+        )
+
+    return result
 
 
 async def run_skill(skill_id: str, user_input: str):
