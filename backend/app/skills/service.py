@@ -6,7 +6,7 @@ import httpx
 from app.skills.history_store import save_skill_run
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma3:4b")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:8b")
 MAX_USER_INPUT_CHARS = 12000
 
 SKILLS = [
@@ -70,6 +70,66 @@ SKILLS = [
         "category": "AI",
         "description": "Summarizes uploaded text documents using local Ollama AI.",
         "input_type": "file",
+    },
+        {
+        "id": "judiciary_exam_coach",
+        "name": "Judiciary Exam Coach",
+        "category": "Legal",
+        "description": "Prepare for judiciary exams with subject revision, mock questions, and answer writing.",
+    },
+    {
+        "id": "judgment_analysis_assistant",
+        "name": "Judgment Analysis Assistant",
+        "category": "Legal",
+        "description": "Analyze judgments with facts, issues, reasoning, ratio decidendi, and final holding.",
+    },
+    {
+        "id": "legal_reasoning_coach",
+        "name": "Legal Reasoning Coach",
+        "category": "Legal",
+        "description": "Develop legal reasoning, issue spotting, and judge-like analysis from facts.",
+    },
+    {
+        "id": "case_brief_generator",
+        "name": "Case Brief Generator",
+        "category": "Legal",
+        "description": "Convert cases and judgments into structured case briefs.",
+    },
+    {
+        "id": "bare_act_explainer",
+        "name": "Bare Act Explainer",
+        "category": "Legal",
+        "description": "Explain legal sections, provisions, and acts in simple language with examples.",
+    },
+    {
+        "id": "legal_drafting_assistant",
+        "name": "Legal Drafting Assistant",
+        "category": "Legal",
+        "description": "Assist with drafts for notices, applications, affidavits, and written submissions.",
+    },
+    {
+        "id": "current_legal_affairs_assistant",
+        "name": "Current Legal Affairs Assistant",
+        "category": "Legal",
+        "description": "Summarize important legal developments, amendments, and recent judgments.",
+    },
+    {
+        "id": "argument_builder",
+        "name": "Argument Builder",
+        "category": "Legal",
+        "description": "Build petitioner/respondent arguments, counterarguments, and oral submissions.",
+    },
+    {
+        "id": "precedent_finder",
+        "name": "Precedent Finder",
+        "category": "Legal",
+        "description": "Suggest relevant precedents and legal principles based on provided facts.",
+    },
+    {
+        "id": "judicial_writing_coach",
+        "name": "Judicial Writing Coach",
+        "category": "Legal",
+        "description": "Practice judgment writing, issue framing, findings, and order drafting.",
     },
 ]
 
