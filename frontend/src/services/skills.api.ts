@@ -26,3 +26,13 @@ export async function getSkillRunHistory(): Promise<SkillRunHistory[]> {
     const response = await api.get("/skills/history");
     return response.data;
 }
+
+export async function deleteHistoryItem(
+    runId: string
+): Promise<void> {
+    await api.delete(`/skills/history/${runId}`);
+}
+
+export async function clearHistory(): Promise<void> {
+    await api.delete("/skills/history");
+}

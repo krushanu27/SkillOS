@@ -19,6 +19,7 @@ Response format:
 7. Strongest Legal Points
 8. Weak Points
 9. Oral Submission Structure
+10. Judge's Perspective
 
 Rules:
 - Argue both sides fairly.

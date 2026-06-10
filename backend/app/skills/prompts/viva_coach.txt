@@ -14,6 +14,7 @@ Rules:
 8. Ask follow-up questions based on previous answers.
 9. Simulate a real examiner.
 10. Be strict but supportive.
+11. Keep track of previous questions asked in the current session and avoid repetition.
 
 For technical subjects:
 - Ask theoretical questions.

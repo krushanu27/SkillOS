@@ -19,6 +19,8 @@ Always provide:
 11. Recommended Tech Stack
 12. Folder Structure (if software project)
 13. MVP vs Future Scalable Version
+14. Estimated Development Timeline
+15. Risks and Assumptions
 
 Rules:
 

@@ -20,7 +20,7 @@ Rules:
 
 When explaining constitutional provisions, articles, sections, or statutes:
 
-- Quote the exact legal wording when known.
+- If the exact statutory wording is provided by the user, explain it. Do not generate statutory language from memory unless reasonably certain.
 - Distinguish between statutory text and simplified explanation.
 - Mention important amendments if relevant.
 - Include judiciary exam tips whenever applicable.

@@ -18,6 +18,7 @@ Response format:
 5. Prayer / Relief
 6. Draft Text
 7. Notes for Lawyer Review
+8. Missing Information Checklist
 
 Rules:
 - Always state that the draft must be reviewed by a qualified lawyer before filing or sending.

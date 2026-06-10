@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { getSkillRunHistory } from "../services/skills.api";
+import {
+    getSkillRunHistory,
+    deleteHistoryItem,
+    clearHistory,
+} from "../services/skills.api";
+
 import type { SkillRunHistory } from "../types/skill";
 
 type ThemeName = "workspace" | "command";
@@ -18,29 +23,54 @@ export default function HistoryPage() {
     const [history, setHistory] = useState<SkillRunHistory[]>([]);
     const [loading, setLoading] = useState(true);
 
+    const loadHistory = async () => {
+        try {
+            const data = await getSkillRunHistory();
+
+            const sortedHistory = [...data].sort(
+                (a, b) =>
+                    new Date(b.created_at).getTime() -
+                    new Date(a.created_at).getTime()
+            );
+
+            setHistory(sortedHistory);
+        } catch (error) {
+            console.error("Failed to load history:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
         applySavedTheme();
-
-        async function loadHistory() {
-            try {
-                const data = await getSkillRunHistory();
-
-                const sortedHistory = [...data].sort(
-                    (a, b) =>
-                        new Date(b.created_at).getTime() -
-                        new Date(a.created_at).getTime()
-                );
-
-                setHistory(sortedHistory);
-            } catch (error) {
-                console.error("Failed to load history:", error);
-            } finally {
-                setLoading(false);
-            }
-        }
-
         loadHistory();
     }, []);
+
+    const handleDelete = async (runId: string) => {
+        const confirmed = window.confirm(
+            "Delete this history entry?"
+        );
+
+        if (!confirmed) return;
+
+        await deleteHistoryItem(runId);
+
+        setHistory((current) =>
+            current.filter((item) => item.id !== runId)
+        );
+    };
+
+    const handleClearAll = async () => {
+        const confirmed = window.confirm(
+            "Delete ALL execution history?"
+        );
+
+        if (!confirmed) return;
+
+        await clearHistory();
+
+        setHistory([]);
+    };
 
     return (
         <div className="app-shell">
@@ -76,6 +106,16 @@ export default function HistoryPage() {
                             prompts, and generated outputs.
                         </p>
                     </div>
+
+                    {history.length > 0 && (
+                        <button
+                            className="secondary-button"
+                            onClick={handleClearAll}
+                            type="button"
+                        >
+                            Clear History
+                        </button>
+                    )}
                 </header>
 
                 {loading ? (
@@ -124,8 +164,20 @@ export default function HistoryPage() {
                                         </div>
                                     </div>
 
-                                    <div className="history-badge">
-                                        EXECUTED
+                                    <div className="history-actions">
+                                        <div className="history-badge">
+                                            EXECUTED
+                                        </div>
+
+                                        <button
+                                            className="secondary-button"
+                                            onClick={() =>
+                                                handleDelete(run.id)
+                                            }
+                                            type="button"
+                                        >
+                                            Delete
+                                        </button>
                                     </div>
                                 </div>
 

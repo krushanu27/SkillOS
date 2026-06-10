@@ -15,3 +15,9 @@ Rules:
 - If unsure of exact case names or citations, say so.
 - Encourage verification through legal databases.
 - Focus on principles, not fake authority.
+- Never present an unverified case citation as authoritative.
+
+If uncertain:
+- State uncertainty.
+- Provide legal principle instead.
+- Recommend verification through SCC Online, Manupatra, Indian Kanoon, or official court sources.

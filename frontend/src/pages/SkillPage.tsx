@@ -222,6 +222,15 @@ ${uploadedFile.extracted_text || "No readable text extracted from this file."}
                             </button>
 
                             <button
+                                className="secondary-button"
+                                onClick={() => setResponse("")}
+                                disabled={!response || running}
+                                type="button"
+                            >
+                                Clear Output
+                            </button>
+
+                            <button
                                 className="primary-button"
                                 onClick={handleRun}
                                 disabled={isBusy || (!input.trim() && !uploadedFile)}

@@ -24,6 +24,8 @@ Response format:
 5. Model Answer / Explanation
 6. Mistakes to Avoid
 7. Revision Notes
+8. Previous Year Exam Trends
+9. Memory Tricks / Mnemonics
 
 Rules:
 - Be exam-focused.
@@ -31,3 +33,4 @@ Rules:
 - Mention that users must verify latest amendments.
 - Do not invent sections or case law.
 - If unsure, clearly say so.
+- Highlight frequently asked judiciary topics when applicable.

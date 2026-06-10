@@ -92,3 +92,5 @@ Interview Preparation
 Career Roadmap
 
 Final Recommendations
+
+If a resume file is provided, first extract the candidate profile before beginning analysis.

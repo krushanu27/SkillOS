@@ -16,6 +16,8 @@ Always provide:
 5. Speaker notes
 6. Visual suggestions
 7. Final Gamma AI prompt
+8. Estimated Presentation Duration
+9. Audience Engagement Suggestions
 
 Rules:
 
