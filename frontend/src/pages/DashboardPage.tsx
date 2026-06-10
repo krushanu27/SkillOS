@@ -4,6 +4,10 @@ import { Link } from "react-router-dom";
 import { getSkills } from "../services/skills.api";
 
 type ThemeName = "workspace" | "command";
+type QuickView = "all" | "favorites" | "legal";
+
+const FAVORITES_STORAGE_KEY = "skillos-favorite-skills";
+const RECENT_SKILLS_STORAGE_KEY = "skillos-recent-skills";
 
 function applyTheme(theme: ThemeName) {
     document.documentElement.setAttribute("data-theme", theme);
@@ -28,13 +32,26 @@ export default function DashboardPage() {
     const [theme, setTheme] = useState<ThemeName>("workspace");
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("All");
+    const [favoriteSkillIds, setFavoriteSkillIds] = useState<string[]>([]);
+    const [recentSkillIds, setRecentSkillIds] = useState<string[]>([]);
+    const [quickView, setQuickView] = useState<QuickView>("all");
 
     useEffect(() => {
         const savedTheme =
             (localStorage.getItem("skillos-theme") as ThemeName | null) ||
             "workspace";
 
+        const savedFavorites = JSON.parse(
+            localStorage.getItem(FAVORITES_STORAGE_KEY) || "[]"
+        );
+
+        const savedRecentSkills = JSON.parse(
+            localStorage.getItem(RECENT_SKILLS_STORAGE_KEY) || "[]"
+        );
+
         setTheme(savedTheme);
+        setFavoriteSkillIds(savedFavorites);
+        setRecentSkillIds(savedRecentSkills);
         applyTheme(savedTheme);
 
         getSkills().then((data) => {
@@ -55,11 +72,23 @@ export default function DashboardPage() {
     const skillCategories = useMemo(() => {
         return [
             "All",
-            ...Array.from(
-                new Set(skills.map((skill) => skill.category))
-            ),
+            ...Array.from(new Set(skills.map((skill) => skill.category))),
         ];
     }, [skills]);
+
+    const favoriteSkills = useMemo(() => {
+        return skills.filter((skill) =>
+            favoriteSkillIds.includes(skill.id)
+        );
+    }, [skills, favoriteSkillIds]);
+
+    const recentSkills = useMemo(() => {
+        return recentSkillIds
+            .map((skillId) =>
+                skills.find((skill) => skill.id === skillId)
+            )
+            .filter(Boolean);
+    }, [skills, recentSkillIds]);
 
     const filteredSkills = useMemo(() => {
         const query = searchQuery.trim().toLowerCase();
@@ -75,13 +104,127 @@ export default function DashboardPage() {
                 selectedCategory === "All" ||
                 skill.category === selectedCategory;
 
-            return matchesSearch && matchesCategory;
+            const matchesQuickView =
+                quickView === "all" ||
+                (quickView === "favorites" &&
+                    favoriteSkillIds.includes(skill.id)) ||
+                (quickView === "legal" &&
+                    skill.category.toLowerCase().includes("legal"));
+
+            return matchesSearch && matchesCategory && matchesQuickView;
         });
-    }, [skills, searchQuery, selectedCategory]);
+    }, [
+        skills,
+        searchQuery,
+        selectedCategory,
+        quickView,
+        favoriteSkillIds,
+    ]);
+
+    const dashboardTitle = useMemo(() => {
+        if (quickView === "favorites") return "Favorite Skills";
+        if (quickView === "legal") return "Legal Skills";
+        return "All Workspaces";
+    }, [quickView]);
 
     const changeTheme = (nextTheme: ThemeName) => {
         setTheme(nextTheme);
         applyTheme(nextTheme);
+    };
+
+    const resetDashboardView = () => {
+        setQuickView("all");
+        setSelectedCategory("All");
+        setSearchQuery("");
+    };
+
+    const showFavoriteSkills = () => {
+        setQuickView("favorites");
+        setSelectedCategory("All");
+        setSearchQuery("");
+    };
+
+    const showLegalSkills = () => {
+        setQuickView("legal");
+        setSelectedCategory("All");
+        setSearchQuery("");
+    };
+
+    const toggleFavorite = (skillId: string) => {
+        setFavoriteSkillIds((currentFavorites) => {
+            const updatedFavorites = currentFavorites.includes(skillId)
+                ? currentFavorites.filter((id) => id !== skillId)
+                : [...currentFavorites, skillId];
+
+            localStorage.setItem(
+                FAVORITES_STORAGE_KEY,
+                JSON.stringify(updatedFavorites)
+            );
+
+            return updatedFavorites;
+        });
+    };
+
+    const saveRecentSkill = (skillId: string) => {
+        setRecentSkillIds((currentRecentSkills) => {
+            const updatedRecentSkills = [
+                skillId,
+                ...currentRecentSkills.filter((id) => id !== skillId),
+            ].slice(0, 5);
+
+            localStorage.setItem(
+                RECENT_SKILLS_STORAGE_KEY,
+                JSON.stringify(updatedRecentSkills)
+            );
+
+            return updatedRecentSkills;
+        });
+    };
+
+    const renderSkillCard = (skill: any) => {
+        const isFavorite = favoriteSkillIds.includes(skill.id);
+
+        return (
+            <article key={skill.id} className="card skill-card">
+                <div className="skill-card-top">
+                    <span className="skill-icon">
+                        {getCategoryIcon(skill.category)}
+                    </span>
+
+                    <span className="category">
+                        {skill.category}
+                    </span>
+
+                    <button
+                        className={`favorite-button ${isFavorite ? "active" : ""
+                            }`}
+                        onClick={() => toggleFavorite(skill.id)}
+                        type="button"
+                        aria-label={
+                            isFavorite
+                                ? "Remove from favorites"
+                                : "Add to favorites"
+                        }
+                    >
+                        {isFavorite ? "★" : "☆"}
+                    </button>
+                </div>
+
+                <Link
+                    to={`/skill/${skill.id}`}
+                    className="skill-card-link"
+                    onClick={() => saveRecentSkill(skill.id)}
+                >
+                    <h3>{skill.name}</h3>
+
+                    <p>{skill.description}</p>
+
+                    <div className="launch-hint">
+                        Launch Workspace →
+                    </div>
+                </Link>
+            </article>
+        );
     };
 
     return (
@@ -94,13 +237,42 @@ export default function DashboardPage() {
                 </div>
 
                 <nav className="nav-links">
-                    <Link className="nav-link active-nav" to="/">
+                    <Link
+                        className={`nav-link ${quickView === "all" ? "active-nav" : ""
+                            }`}
+                        to="/"
+                        onClick={resetDashboardView}
+                    >
                         Dashboard
                     </Link>
 
                     <Link className="nav-link" to="/history">
                         Execution History
                     </Link>
+
+                    <button
+                        type="button"
+                        className={`nav-link nav-button ${quickView === "favorites" ? "active-nav" : ""
+                            }`}
+                        onClick={showFavoriteSkills}
+                    >
+                        <span>★ Favorites</span>
+                        <strong className="nav-count">
+                            {favoriteSkills.length}
+                        </strong>
+                    </button>
+
+                    <button
+                        type="button"
+                        className={`nav-link nav-button ${quickView === "legal" ? "active-nav" : ""
+                            }`}
+                        onClick={showLegalSkills}
+                    >
+                        <span>⚖ Legal</span>
+                        <strong className="nav-count">
+                            {legalSkills}
+                        </strong>
+                    </button>
                 </nav>
 
                 <div className="sidebar-stats">
@@ -174,8 +346,8 @@ export default function DashboardPage() {
                     </div>
 
                     <div className="stat-card">
-                        <span>Mode</span>
-                        <strong>{theme === "workspace" ? "Pro" : "CMD"}</strong>
+                        <span>Favorites</span>
+                        <strong>{favoriteSkills.length}</strong>
                     </div>
                 </section>
 
@@ -201,14 +373,19 @@ export default function DashboardPage() {
                         <button
                             key={category}
                             type="button"
-                            className={`filter-chip ${selectedCategory === category ? "active" : ""
+                            className={`filter-chip ${quickView === "all" &&
+                                    selectedCategory === category
+                                    ? "active"
+                                    : ""
                                 }`}
-                            onClick={() =>
-                                setSelectedCategory(category)
-                            }
+                            onClick={() => {
+                                setQuickView("all");
+                                setSelectedCategory(category);
+                            }}
                             style={{
                                 opacity:
-                                    selectedCategory === category
+                                    quickView === "all" &&
+                                        selectedCategory === category
                                         ? 1
                                         : 0.7,
                             }}
@@ -218,32 +395,36 @@ export default function DashboardPage() {
                     ))}
                 </div>
 
-                <section className="card-grid">
-                    {filteredSkills.map((skill) => (
-                        <Link
-                            key={skill.id}
-                            to={`/skill/${skill.id}`}
-                            className="card skill-card"
-                        >
-                            <div className="skill-card-top">
-                                <span className="skill-icon">
-                                    {getCategoryIcon(skill.category)}
-                                </span>
-
-                                <span className="category">
-                                    {skill.category}
-                                </span>
+                {recentSkills.length > 0 && (
+                    <section className="dashboard-section">
+                        <div className="section-header">
+                            <div>
+                                <div className="eyebrow">Quick Return</div>
+                                <h3>Recently Used Skills</h3>
                             </div>
+                        </div>
 
-                            <h3>{skill.name}</h3>
+                        <div className="card-grid">
+                            {recentSkills.map((skill) =>
+                                renderSkillCard(skill)
+                            )}
+                        </div>
+                    </section>
+                )}
 
-                            <p>{skill.description}</p>
+                <section className="dashboard-section">
+                    <div className="section-header">
+                        <div>
+                            <div className="eyebrow">Skill Library</div>
+                            <h3>{dashboardTitle}</h3>
+                        </div>
+                    </div>
 
-                            <div className="launch-hint">
-                                Launch Workspace →
-                            </div>
-                        </Link>
-                    ))}
+                    <div className="card-grid">
+                        {filteredSkills.map((skill) =>
+                            renderSkillCard(skill)
+                        )}
+                    </div>
                 </section>
 
                 {filteredSkills.length === 0 && (

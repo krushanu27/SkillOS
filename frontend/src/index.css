@@ -848,3 +848,69 @@ textarea:focus {
   gap: 10px;
   align-items: center;
 }
+
+.dashboard-section {
+  margin-top: 24px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.section-header h3 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.skill-card-link {
+  display: block;
+  text-decoration: none;
+}
+
+.favorite-button {
+  margin-left: auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-card-soft);
+  color: var(--text-muted);
+  display: grid;
+  place-items: center;
+  transition: all 0.2s ease;
+}
+
+.favorite-button:hover {
+  border-color: var(--accent);
+  color: var(--accent-2);
+}
+
+.favorite-button.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-2);
+}
+
+.nav-button {
+  width: 100%;
+  background: transparent;
+  text-align: left;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nav-count {
+  color: var(--accent-2);
+  font-size: 12px;
+}
+
+@media (max-width: 1024px) {
+  .nav-button {
+    width: auto;
+    gap: 10px;
+  }
+}
