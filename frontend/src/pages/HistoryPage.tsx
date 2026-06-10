@@ -56,7 +56,7 @@ export default function HistoryPage() {
                         Dashboard
                     </Link>
 
-                    <Link className="nav-link" to="/history">
+                    <Link className="nav-link active-nav" to="/history">
                         Execution History
                     </Link>
                 </nav>
@@ -80,15 +80,29 @@ export default function HistoryPage() {
 
                 {loading ? (
                     <div className="output-panel">
-                        <p className="empty-output">
-                            Loading execution memory...
-                        </p>
+                        <div className="loading-console">
+                            <strong>⚡ Accessing System Memory</strong>
+
+                            <span>Loading execution history...</span>
+                            <span>Reading stored records...</span>
+                            <span>Preparing timeline...</span>
+                        </div>
                     </div>
                 ) : history.length === 0 ? (
                     <div className="output-panel">
-                        <p className="empty-output">
-                            No executions found.
-                        </p>
+                        <div className="empty-state-panel">
+                            <h3>📜 No Execution History</h3>
+
+                            <p>
+                                This workspace has not recorded any skill executions yet.
+                            </p>
+
+                            <ul>
+                                <li>Run a skill from the dashboard</li>
+                                <li>Generated outputs are stored automatically</li>
+                                <li>History survives server restarts</li>
+                            </ul>
+                        </div>
                     </div>
                 ) : (
                     <div className="history-list">

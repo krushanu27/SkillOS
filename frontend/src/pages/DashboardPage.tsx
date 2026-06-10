@@ -94,7 +94,7 @@ export default function DashboardPage() {
                 </div>
 
                 <nav className="nav-links">
-                    <Link className="nav-link" to="/">
+                    <Link className="nav-link active-nav" to="/">
                         Dashboard
                     </Link>
 

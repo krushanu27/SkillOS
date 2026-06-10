@@ -25,6 +25,9 @@ export default function SkillPage() {
     const [uploading, setUploading] = useState(false);
     const [running, setRunning] = useState(false);
     const [skillName, setSkillName] = useState("");
+    const [skillCategory, setSkillCategory] = useState("");
+    const [notice, setNotice] = useState("");
+    const [copied, setCopied] = useState(false);
 
     const isBusy = uploading || running;
 
@@ -41,6 +44,7 @@ export default function SkillPage() {
 
                 if (skill) {
                     setSkillName(skill.name);
+                    setSkillCategory(skill.category);
                 }
             } catch (error) {
                 console.error(error);
@@ -54,10 +58,12 @@ export default function SkillPage() {
         if (!selectedFile) return;
 
         setUploading(true);
+        setNotice("");
 
         try {
             const result = await uploadFile(selectedFile);
             setUploadedFile(result);
+            setNotice("✓ File uploaded successfully.");
         } finally {
             setUploading(false);
         }
@@ -68,6 +74,7 @@ export default function SkillPage() {
 
         setRunning(true);
         setResponse("");
+        setNotice("");
 
         try {
             const fileContext = uploadedFile
@@ -87,9 +94,31 @@ ${uploadedFile.extracted_text || "No readable text extracted from this file."}
 
             const result = await runSkill(id || "", finalInput);
             setResponse(result.response);
+            setNotice("✓ Skill executed successfully.");
         } finally {
             setRunning(false);
         }
+    };
+
+    const handleCopyOutput = async () => {
+        if (!response) return;
+
+        await navigator.clipboard.writeText(response);
+
+        setCopied(true);
+
+        setTimeout(() => {
+            setCopied(false);
+        }, 2000);
+    };
+
+    const handleResetWorkspace = () => {
+        setInput("");
+        setResponse("");
+        setSelectedFile(null);
+        setUploadedFile(null);
+        setNotice("");
+        setCopied(false);
     };
 
     return (
@@ -102,7 +131,7 @@ ${uploadedFile.extracted_text || "No readable text extracted from this file."}
                 </div>
 
                 <nav className="nav-links">
-                    <Link className="nav-link" to="/">
+                    <Link className="nav-link active-nav" to="/">
                         Dashboard
                     </Link>
 
@@ -124,6 +153,23 @@ ${uploadedFile.extracted_text || "No readable text extracted from this file."}
                         <p className="page-subtitle">
                             Provide instructions, attach optional context, and run this reusable expert skill.
                         </p>
+
+                        <div className="workspace-info-grid">
+                            <div className="workspace-info-card">
+                                <span>Category</span>
+                                <strong>{skillCategory || "General"}</strong>
+                            </div>
+
+                            <div className="workspace-info-card">
+                                <span>Status</span>
+                                <strong>{isBusy ? "Processing" : "Ready"}</strong>
+                            </div>
+
+                            <div className="workspace-info-card">
+                                <span>File Upload</span>
+                                <strong>Enabled</strong>
+                            </div>
+                        </div>
                     </div>
                 </header>
 
@@ -152,6 +198,7 @@ ${uploadedFile.extracted_text || "No readable text extracted from this file."}
                                             e.target.files?.[0] || null
                                         );
                                         setUploadedFile(null);
+                                        setNotice("");
                                     }}
                                 />
                             </label>
@@ -166,6 +213,15 @@ ${uploadedFile.extracted_text || "No readable text extracted from this file."}
                             </button>
 
                             <button
+                                className="secondary-button"
+                                onClick={handleResetWorkspace}
+                                disabled={isBusy}
+                                type="button"
+                            >
+                                Reset Workspace
+                            </button>
+
+                            <button
                                 className="primary-button"
                                 onClick={handleRun}
                                 disabled={isBusy || (!input.trim() && !uploadedFile)}
@@ -174,6 +230,12 @@ ${uploadedFile.extracted_text || "No readable text extracted from this file."}
                                 {running ? "Running Skill..." : "Run Skill"}
                             </button>
                         </div>
+
+                        {notice && (
+                            <p className="upload-note">
+                                {notice}
+                            </p>
+                        )}
 
                         {selectedFile && !uploadedFile && (
                             <p className="upload-note">
@@ -196,7 +258,26 @@ ${uploadedFile.extracted_text || "No readable text extracted from this file."}
                     </div>
 
                     <div className="output-panel">
-                        <div className="eyebrow">Generated Output</div>
+                        <div
+                            style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                marginBottom: "12px",
+                            }}
+                        >
+                            <div className="eyebrow">Generated Output</div>
+
+                            {response && (
+                                <button
+                                    className="secondary-button"
+                                    onClick={handleCopyOutput}
+                                    type="button"
+                                >
+                                    {copied ? "Copied ✓" : "Copy Output"}
+                                </button>
+                            )}
+                        </div>
 
                         {running ? (
                             <div className="loading-console">
@@ -212,9 +293,19 @@ ${uploadedFile.extracted_text || "No readable text extracted from this file."}
                                 <pre>{response}</pre>
                             </div>
                         ) : (
-                            <p className="empty-output">
-                                Output will appear here after execution.
-                            </p>
+                            <div className="empty-state-panel">
+                                <h3>⚡ Workspace Ready</h3>
+
+                                <p>
+                                    Enter a prompt and run the skill.
+                                </p>
+
+                                <ul>
+                                    <li>Text prompts supported</li>
+                                    <li>File uploads supported</li>
+                                    <li>AI-generated responses</li>
+                                </ul>
+                            </div>
                         )}
                     </div>
                 </section>
