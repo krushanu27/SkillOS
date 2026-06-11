@@ -131,6 +131,12 @@ SKILLS = [
         "category": "Legal",
         "description": "Practice judgment writing with issues, findings, reasoning, operative orders, and judicial style.",
     },
+    {
+  "id": "ai_agent_workspace",
+  "name": "AI Agent Workspace",
+  "category": "AI",
+  "description": "Plan, reason, and execute multi-step AI tasks using SkillOS agent behavior."
+}
 ]
 
 
