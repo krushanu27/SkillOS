@@ -11,17 +11,25 @@ import type { SkillRunHistory } from "../types/skill";
 
 type ThemeName = "workspace" | "command";
 
-function applySavedTheme() {
-    const savedTheme =
-        (localStorage.getItem("skillos-theme") as ThemeName | null) ||
-        "workspace";
+const QUICK_VIEW_STORAGE_KEY = "skillos-dashboard-quick-view";
 
-    document.documentElement.setAttribute("data-theme", savedTheme);
+function applyTheme(theme: ThemeName) {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("skillos-theme", theme);
+}
+
+function getSavedTheme(): ThemeName {
+    return (
+        (localStorage.getItem("skillos-theme") as ThemeName | null) ||
+        "workspace"
+    );
 }
 
 export default function HistoryPage() {
     const [history, setHistory] = useState<SkillRunHistory[]>([]);
     const [loading, setLoading] = useState(true);
+    const [theme, setTheme] = useState<ThemeName>("workspace");
+    const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
     const loadHistory = async () => {
         try {
@@ -42,9 +50,26 @@ export default function HistoryPage() {
     };
 
     useEffect(() => {
-        applySavedTheme();
+        const savedTheme = getSavedTheme();
+
+        setTheme(savedTheme);
+        applyTheme(savedTheme);
         loadHistory();
     }, []);
+
+    const closeMobileNav = () => {
+        setIsMobileNavOpen(false);
+    };
+
+    const changeTheme = (nextTheme: ThemeName) => {
+        setTheme(nextTheme);
+        applyTheme(nextTheme);
+    };
+
+    const goToDashboardView = (quickView: "all" | "favorites" | "legal") => {
+        localStorage.setItem(QUICK_VIEW_STORAGE_KEY, quickView);
+        closeMobileNav();
+    };
 
     const handleDelete = async (runId: string) => {
         const confirmed = window.confirm(
@@ -74,7 +99,31 @@ export default function HistoryPage() {
 
     return (
         <div className="app-shell">
-            <aside className="sidebar">
+            <button
+                className="mobile-menu-button"
+                type="button"
+                onClick={() =>
+                    setIsMobileNavOpen((currentState) => !currentState)
+                }
+                aria-label="Toggle navigation menu"
+                aria-expanded={isMobileNavOpen}
+            >
+                ☰ Menu
+            </button>
+
+            {isMobileNavOpen && (
+                <button
+                    className="nav-overlay"
+                    type="button"
+                    onClick={closeMobileNav}
+                    aria-label="Close navigation menu"
+                />
+            )}
+
+            <aside
+                className={`sidebar ${isMobileNavOpen ? "sidebar-open" : ""
+                    }`}
+            >
                 <div className="brand">
                     <div className="brand-badge">SO</div>
                     <h1>SkillOS</h1>
@@ -82,14 +131,62 @@ export default function HistoryPage() {
                 </div>
 
                 <nav className="nav-links">
-                    <Link className="nav-link" to="/">
+                    <Link
+                        className="nav-link"
+                        to="/"
+                        onClick={() => goToDashboardView("all")}
+                    >
                         Dashboard
                     </Link>
 
-                    <Link className="nav-link active-nav" to="/history">
+                    <Link
+                        className="nav-link active-nav"
+                        to="/history"
+                        onClick={closeMobileNav}
+                    >
                         Execution History
                     </Link>
+
+                    <Link
+                        className="nav-link"
+                        to="/"
+                        onClick={() => goToDashboardView("favorites")}
+                    >
+                        ★ Favorites
+                    </Link>
+
+                    <Link
+                        className="nav-link"
+                        to="/"
+                        onClick={() => goToDashboardView("legal")}
+                    >
+                        ⚖ Legal
+                    </Link>
                 </nav>
+
+                <div className="theme-panel">
+                    <p>Interface Mode</p>
+
+                    <div className="theme-actions">
+                        <button
+                            className={`theme-button ${theme === "workspace" ? "active" : ""
+                                }`}
+                            onClick={() => changeTheme("workspace")}
+                            type="button"
+                        >
+                            Professional Workspace
+                        </button>
+
+                        <button
+                            className={`theme-button ${theme === "command" ? "active" : ""
+                                }`}
+                            onClick={() => changeTheme("command")}
+                            type="button"
+                        >
+                            Command Center
+                        </button>
+                    </div>
+                </div>
             </aside>
 
             <main className="main-workspace">

@@ -8,6 +8,8 @@ type QuickView = "all" | "favorites" | "legal";
 
 const FAVORITES_STORAGE_KEY = "skillos-favorite-skills";
 const RECENT_SKILLS_STORAGE_KEY = "skillos-recent-skills";
+const SKILL_USAGE_STORAGE_KEY = "skillos-skill-usage-counts";
+const QUICK_VIEW_STORAGE_KEY = "skillos-dashboard-quick-view";
 
 function applyTheme(theme: ThemeName) {
     document.documentElement.setAttribute("data-theme", theme);
@@ -27,6 +29,22 @@ function getCategoryIcon(category: string) {
     return "SK";
 }
 
+function getSavedQuickView(): QuickView {
+    const savedQuickView = localStorage.getItem(
+        QUICK_VIEW_STORAGE_KEY
+    ) as QuickView | null;
+
+    if (
+        savedQuickView === "favorites" ||
+        savedQuickView === "legal" ||
+        savedQuickView === "all"
+    ) {
+        return savedQuickView;
+    }
+
+    return "all";
+}
+
 export default function DashboardPage() {
     const [skills, setSkills] = useState<any[]>([]);
     const [theme, setTheme] = useState<ThemeName>("workspace");
@@ -34,7 +52,10 @@ export default function DashboardPage() {
     const [selectedCategory, setSelectedCategory] = useState("All");
     const [favoriteSkillIds, setFavoriteSkillIds] = useState<string[]>([]);
     const [recentSkillIds, setRecentSkillIds] = useState<string[]>([]);
+    const [skillUsageCounts, setSkillUsageCounts] =
+        useState<Record<string, number>>({});
     const [quickView, setQuickView] = useState<QuickView>("all");
+    const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
     useEffect(() => {
         const savedTheme =
@@ -49,9 +70,15 @@ export default function DashboardPage() {
             localStorage.getItem(RECENT_SKILLS_STORAGE_KEY) || "[]"
         );
 
+        const savedUsageCounts = JSON.parse(
+            localStorage.getItem(SKILL_USAGE_STORAGE_KEY) || "{}"
+        );
+
         setTheme(savedTheme);
         setFavoriteSkillIds(savedFavorites);
         setRecentSkillIds(savedRecentSkills);
+        setSkillUsageCounts(savedUsageCounts);
+        setQuickView(getSavedQuickView());
         applyTheme(savedTheme);
 
         getSkills().then((data) => {
@@ -90,6 +117,17 @@ export default function DashboardPage() {
             .filter(Boolean);
     }, [skills, recentSkillIds]);
 
+    const mostUsedSkills = useMemo(() => {
+        return [...skills]
+            .filter((skill) => (skillUsageCounts[skill.id] || 0) > 0)
+            .sort(
+                (a, b) =>
+                    (skillUsageCounts[b.id] || 0) -
+                    (skillUsageCounts[a.id] || 0)
+            )
+            .slice(0, 3);
+    }, [skills, skillUsageCounts]);
+
     const filteredSkills = useMemo(() => {
         const query = searchQuery.trim().toLowerCase();
 
@@ -127,6 +165,10 @@ export default function DashboardPage() {
         return "All Workspaces";
     }, [quickView]);
 
+    const closeMobileNav = () => {
+        setIsMobileNavOpen(false);
+    };
+
     const changeTheme = (nextTheme: ThemeName) => {
         setTheme(nextTheme);
         applyTheme(nextTheme);
@@ -136,18 +178,24 @@ export default function DashboardPage() {
         setQuickView("all");
         setSelectedCategory("All");
         setSearchQuery("");
+        localStorage.setItem(QUICK_VIEW_STORAGE_KEY, "all");
+        closeMobileNav();
     };
 
     const showFavoriteSkills = () => {
         setQuickView("favorites");
         setSelectedCategory("All");
         setSearchQuery("");
+        localStorage.setItem(QUICK_VIEW_STORAGE_KEY, "favorites");
+        closeMobileNav();
     };
 
     const showLegalSkills = () => {
         setQuickView("legal");
         setSelectedCategory("All");
         setSearchQuery("");
+        localStorage.setItem(QUICK_VIEW_STORAGE_KEY, "legal");
+        closeMobileNav();
     };
 
     const toggleFavorite = (skillId: string) => {
@@ -220,6 +268,10 @@ export default function DashboardPage() {
                     <p>{skill.description}</p>
 
                     <div className="launch-hint">
+                        Used {skillUsageCounts[skill.id] || 0} times
+                    </div>
+
+                    <div className="launch-hint">
                         Launch Workspace →
                     </div>
                 </Link>
@@ -227,9 +279,78 @@ export default function DashboardPage() {
         );
     };
 
+    const renderCompactSkillRow = (
+        skill: any,
+        rank?: number,
+        showUsage = false
+    ) => {
+        const usageCount = skillUsageCounts[skill.id] || 0;
+
+        return (
+            <Link
+                key={skill.id}
+                to={`/skill/${skill.id}`}
+                className="compact-skill-row"
+                onClick={() => saveRecentSkill(skill.id)}
+            >
+                {rank ? (
+                    <span className="leaderboard-rank">
+                        {rank}
+                    </span>
+                ) : (
+                    <span className="skill-icon">
+                        {getCategoryIcon(skill.category)}
+                    </span>
+                )}
+
+                <span className="compact-skill-main">
+                    <span className="compact-skill-title">
+                        {skill.name}
+                    </span>
+
+                    <span className="compact-skill-meta">
+                        {skill.category}
+                    </span>
+                </span>
+
+                <span className="compact-skill-count">
+                    {showUsage
+                        ? `${usageCount} ${usageCount === 1 ? "use" : "uses"
+                        }`
+                        : "Open"}{" "}
+                    →
+                </span>
+            </Link>
+        );
+    };
+
     return (
         <div className="app-shell">
-            <aside className="sidebar">
+            <button
+                className="mobile-menu-button"
+                type="button"
+                onClick={() =>
+                    setIsMobileNavOpen((currentState) => !currentState)
+                }
+                aria-label="Toggle navigation menu"
+                aria-expanded={isMobileNavOpen}
+            >
+                ☰ Menu
+            </button>
+
+            {isMobileNavOpen && (
+                <button
+                    className="nav-overlay"
+                    type="button"
+                    onClick={closeMobileNav}
+                    aria-label="Close navigation menu"
+                />
+            )}
+
+            <aside
+                className={`sidebar ${isMobileNavOpen ? "sidebar-open" : ""
+                    }`}
+            >
                 <div className="brand">
                     <div className="brand-badge">SO</div>
                     <h1>SkillOS</h1>
@@ -246,7 +367,11 @@ export default function DashboardPage() {
                         Dashboard
                     </Link>
 
-                    <Link className="nav-link" to="/history">
+                    <Link
+                        className="nav-link"
+                        to="/history"
+                        onClick={closeMobileNav}
+                    >
                         Execution History
                     </Link>
 
@@ -381,6 +506,10 @@ export default function DashboardPage() {
                             onClick={() => {
                                 setQuickView("all");
                                 setSelectedCategory(category);
+                                localStorage.setItem(
+                                    QUICK_VIEW_STORAGE_KEY,
+                                    "all"
+                                );
                             }}
                             style={{
                                 opacity:
@@ -395,8 +524,31 @@ export default function DashboardPage() {
                     ))}
                 </div>
 
+                {mostUsedSkills.length > 0 && (
+                    <section className="dashboard-section compact-dashboard-section">
+                        <div className="section-header">
+                            <div>
+                                <div className="eyebrow">
+                                    Usage Intelligence
+                                </div>
+                                <h3>Most Used Skills</h3>
+                            </div>
+                        </div>
+
+                        <div className="compact-skill-list">
+                            {mostUsedSkills.map((skill, index) =>
+                                renderCompactSkillRow(
+                                    skill,
+                                    index + 1,
+                                    true
+                                )
+                            )}
+                        </div>
+                    </section>
+                )}
+
                 {recentSkills.length > 0 && (
-                    <section className="dashboard-section">
+                    <section className="dashboard-section compact-dashboard-section">
                         <div className="section-header">
                             <div>
                                 <div className="eyebrow">Quick Return</div>
@@ -404,9 +556,9 @@ export default function DashboardPage() {
                             </div>
                         </div>
 
-                        <div className="card-grid">
+                        <div className="compact-skill-list">
                             {recentSkills.map((skill) =>
-                                renderSkillCard(skill)
+                                renderCompactSkillRow(skill)
                             )}
                         </div>
                     </section>

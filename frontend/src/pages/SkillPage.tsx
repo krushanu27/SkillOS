@@ -7,6 +7,9 @@ import { getSkills } from "../services/skills.api";
 
 type ThemeName = "workspace" | "command";
 
+const SKILL_USAGE_STORAGE_KEY =
+    "skillos-skill-usage-counts";
+
 function applySavedTheme() {
     const savedTheme =
         (localStorage.getItem("skillos-theme") as ThemeName | null) ||
@@ -93,8 +96,21 @@ ${uploadedFile.extracted_text || "No readable text extracted from this file."}
             const finalInput = `${input}${fileContext}`;
 
             const result = await runSkill(id || "", finalInput);
+
             setResponse(result.response);
             setNotice("✓ Skill executed successfully.");
+
+            const currentUsageCounts = JSON.parse(
+                localStorage.getItem(SKILL_USAGE_STORAGE_KEY) || "{}"
+            );
+
+            currentUsageCounts[id || "unknown"] =
+                (currentUsageCounts[id || "unknown"] || 0) + 1;
+
+            localStorage.setItem(
+                SKILL_USAGE_STORAGE_KEY,
+                JSON.stringify(currentUsageCounts)
+            );
         } finally {
             setRunning(false);
         }
@@ -142,6 +158,22 @@ ${uploadedFile.extracted_text || "No readable text extracted from this file."}
             </aside>
 
             <main className="main-workspace">
+                <div className="workspace-nav-actions">
+                    <Link
+                        to="/"
+                        className="workspace-nav-link"
+                    >
+                        ← Dashboard
+                    </Link>
+
+                    <Link
+                        to="/history"
+                        className="workspace-nav-link"
+                    >
+                        Execution History
+                    </Link>
+                </div>
+
                 <header className="page-header">
                     <div>
                         <div className="eyebrow">Active Workspace</div>
@@ -184,54 +216,58 @@ ${uploadedFile.extracted_text || "No readable text extracted from this file."}
                             disabled={isBusy}
                         />
 
-                        <div className="file-row">
-                            <label className="file-picker">
-                                Select File
+                        <div className="workspace-action-panel">
+                            <div className="workspace-action-row">
+                                <label className="file-picker">
+                                    Select File
 
-                                <input
-                                    type="file"
-                                    accept=".txt,.pdf,.docx"
-                                    style={{ display: "none" }}
+                                    <input
+                                        type="file"
+                                        accept=".txt,.pdf,.docx"
+                                        style={{ display: "none" }}
+                                        disabled={isBusy}
+                                        onChange={(e) => {
+                                            setSelectedFile(
+                                                e.target.files?.[0] || null
+                                            );
+                                            setUploadedFile(null);
+                                            setNotice("");
+                                        }}
+                                    />
+                                </label>
+
+                                <button
+                                    className="secondary-button"
+                                    onClick={handleUpload}
+                                    disabled={!selectedFile || isBusy}
+                                    type="button"
+                                >
+                                    {uploading ? "Uploading..." : "Upload File"}
+                                </button>
+                            </div>
+
+                            <div className="workspace-action-row">
+                                <button
+                                    className="secondary-button"
+                                    onClick={handleResetWorkspace}
                                     disabled={isBusy}
-                                    onChange={(e) => {
-                                        setSelectedFile(
-                                            e.target.files?.[0] || null
-                                        );
-                                        setUploadedFile(null);
-                                        setNotice("");
-                                    }}
-                                />
-                            </label>
+                                    type="button"
+                                >
+                                    Reset Workspace
+                                </button>
+
+                                <button
+                                    className="secondary-button"
+                                    onClick={() => setResponse("")}
+                                    disabled={!response || running}
+                                    type="button"
+                                >
+                                    Clear Output
+                                </button>
+                            </div>
 
                             <button
-                                className="secondary-button"
-                                onClick={handleUpload}
-                                disabled={!selectedFile || isBusy}
-                                type="button"
-                            >
-                                {uploading ? "Uploading..." : "Upload File"}
-                            </button>
-
-                            <button
-                                className="secondary-button"
-                                onClick={handleResetWorkspace}
-                                disabled={isBusy}
-                                type="button"
-                            >
-                                Reset Workspace
-                            </button>
-
-                            <button
-                                className="secondary-button"
-                                onClick={() => setResponse("")}
-                                disabled={!response || running}
-                                type="button"
-                            >
-                                Clear Output
-                            </button>
-
-                            <button
-                                className="primary-button"
+                                className="primary-button run-skill-button"
                                 onClick={handleRun}
                                 disabled={isBusy || (!input.trim() && !uploadedFile)}
                                 type="button"
@@ -240,42 +276,30 @@ ${uploadedFile.extracted_text || "No readable text extracted from this file."}
                             </button>
                         </div>
 
+                        {selectedFile && (
+                            <p className="upload-note">
+                                Selected file: {selectedFile.name}
+                            </p>
+                        )}
+
+                        {uploadedFile && (
+                            <p className="upload-note">
+                                Uploaded file: {uploadedFile.original_name}
+                            </p>
+                        )}
+
                         {notice && (
                             <p className="upload-note">
                                 {notice}
                             </p>
                         )}
-
-                        {selectedFile && !uploadedFile && (
-                            <p className="upload-note">
-                                Selected: {selectedFile.name}
-                            </p>
-                        )}
-
-                        {uploadedFile && (
-                            <div className="upload-note">
-                                Uploaded: {uploadedFile.original_name}
-                                <br />
-                                Size: {uploadedFile.size_bytes} bytes
-                                <br />
-                                Extracted text:{" "}
-                                {uploadedFile.extracted_text
-                                    ? `${uploadedFile.extracted_text.length} characters`
-                                    : "No readable text found"}
-                            </div>
-                        )}
                     </div>
 
                     <div className="output-panel">
-                        <div
-                            style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                                marginBottom: "12px",
-                            }}
-                        >
-                            <div className="eyebrow">Generated Output</div>
+                        <div className="history-header">
+                            <div>
+                                <div className="eyebrow">Generated Output</div>
+                            </div>
 
                             {response && (
                                 <button
@@ -283,19 +307,17 @@ ${uploadedFile.extracted_text || "No readable text extracted from this file."}
                                     onClick={handleCopyOutput}
                                     type="button"
                                 >
-                                    {copied ? "Copied ✓" : "Copy Output"}
+                                    {copied ? "Copied" : "Copy Output"}
                                 </button>
                             )}
                         </div>
 
                         {running ? (
                             <div className="loading-console">
-                                <strong>⚡ SkillOS Runtime Active</strong>
-
-                                <span>Loading workspace...</span>
-                                <span>Analyzing prompt...</span>
-                                <span>Preparing AI context...</span>
-                                <span>Generating response...</span>
+                                <strong>⚡ Running Skill</strong>
+                                <span>Sending prompt to local AI...</span>
+                                <span>Generating structured output...</span>
+                                <span>Saving execution history...</span>
                             </div>
                         ) : response ? (
                             <div className="output-content">
