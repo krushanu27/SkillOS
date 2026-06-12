@@ -7,7 +7,25 @@ from app.skills.history_store import save_skill_run
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:8b")
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
+
 MAX_USER_INPUT_CHARS = 12000
+
+LEGAL_SKILL_IDS = {
+    "judiciary_exam_coach",
+    "judgment_analysis_assistant",
+    "legal_reasoning_coach",
+    "case_brief_generator",
+    "bare_act_explainer",
+    "legal_drafting_assistant",
+    "current_legal_affairs_assistant",
+    "argument_builder",
+    "precedent_finder",
+    "judicial_writing_coach",
+}
 
 SKILLS = [
     {
@@ -72,6 +90,12 @@ SKILLS = [
         "input_type": "file",
     },
     {
+        "id": "ai_agent_workspace",
+        "name": "AI Agent Workspace",
+        "category": "AI",
+        "description": "Plan, reason, and execute multi-step AI tasks using SkillOS agent behavior.",
+    },
+    {
         "id": "judiciary_exam_coach",
         "name": "Judiciary Exam Coach",
         "category": "Legal",
@@ -131,12 +155,6 @@ SKILLS = [
         "category": "Legal",
         "description": "Practice judgment writing with issues, findings, reasoning, operative orders, and judicial style.",
     },
-    {
-  "id": "ai_agent_workspace",
-  "name": "AI Agent Workspace",
-  "category": "AI",
-  "description": "Plan, reason, and execute multi-step AI tasks using SkillOS agent behavior."
-}
 ]
 
 
@@ -177,17 +195,17 @@ def trim_user_input(user_input: str) -> str:
 {head}
 
 [CONTENT TRIMMED BY SKILLOS]
-The uploaded document was too long to send fully to the local AI model in one request.
+The uploaded document was too long to send fully to the AI model in one request.
 The beginning and ending sections are included for analysis.
 
 {tail}
 """.strip()
 
 
-async def call_ollama(system_prompt: str, user_input: str) -> str:
+def build_final_prompt(system_prompt: str, user_input: str) -> str:
     safe_user_input = trim_user_input(user_input)
 
-    final_prompt = f"""
+    return f"""
 System Instructions:
 {system_prompt}
 
@@ -197,7 +215,11 @@ User Request:
 Answer clearly, practically, and in a structured way.
 Do not reply with only "Okay".
 If the input contains extracted document content, summarize and analyze it using the available text.
-"""
+""".strip()
+
+
+async def call_ollama(system_prompt: str, user_input: str) -> str:
+    final_prompt = build_final_prompt(system_prompt, user_input)
 
     payload = {
         "model": OLLAMA_MODEL,
@@ -205,12 +227,68 @@ If the input contains extracted document content, summarize and analyze it using
         "stream": False,
     }
 
+    async def call_gemini(system_prompt: str, user_input: str) -> str:
+        if not GEMINI_API_KEY:
+            return (
+            "Gemini integration failed.\n\n"
+            "Error:\n"
+            "GEMINI_API_KEY is missing.\n\n"
+            "Fix:\n"
+            "Add GEMINI_API_KEY to your backend .env file and restart the server."
+        )
+
+    final_prompt = build_final_prompt(system_prompt, user_input)
+
+    payload = {
+        "contents": [
+            {
+                "parts": [
+                    {
+                        "text": final_prompt,
+                    }
+                ]
+            }
+        ],
+        "generationConfig": {
+            "temperature": 0.2,
+            "topP": 0.8,
+            "maxOutputTokens": 4096,
+        },
+    }
+
+    request_headers = {
+        "Content-Type": "application/json",
+        "x-goog-api-key": GEMINI_API_KEY,
+    }
+
     async with httpx.AsyncClient(timeout=180.0) as client:
         response = await client.post(
-            f"{OLLAMA_BASE_URL}/api/generate",
+            f"{GEMINI_BASE_URL}/models/{GEMINI_MODEL}:generateContent",
+            headers=request_headers,
             json=payload,
         )
+
+        print("STATUS:", response.status_code)
+        print("BODY:", response.text)
+
         response.raise_for_status()
+
+    data = response.json()
+
+    try:
+        parts = data["candidates"][0]["content"]["parts"]
+        result = "".join(part.get("text", "") for part in parts).strip()
+    except (KeyError, IndexError, TypeError):
+        result = ""
+
+    if not result:
+        return (
+            "Gemini returned an empty response. "
+            "Check the model name, API key, quota, and response payload."
+        )
+
+    return result
+        
 
     data = response.json()
     result = data.get("response", "").strip()
@@ -218,8 +296,67 @@ If the input contains extracted document content, summarize and analyze it using
     if not result or result.lower() == "okay":
         return (
             "The AI returned an incomplete response. "
-            "This usually happens when the uploaded document is too long for the current local model context. "
+            "This usually happens when the uploaded document is too long for the current model context. "
             "Try a shorter document or use the Document Summarizer skill after chunking support is added."
+        )
+
+    return result
+
+
+async def call_gemini(system_prompt: str, user_input: str) -> str:
+    if not GEMINI_API_KEY:
+        return (
+            "Gemini integration failed.\n\n"
+            "Error:\n"
+            "GEMINI_API_KEY is missing.\n\n"
+            "Fix:\n"
+            "Add GEMINI_API_KEY to your backend .env file and restart the server."
+        )
+
+    final_prompt = build_final_prompt(system_prompt, user_input)
+
+    payload = {
+        "contents": [
+            {
+                "parts": [
+                    {
+                        "text": final_prompt,
+                    }
+                ]
+            }
+        ],
+        "generationConfig": {
+            "temperature": 0.2,
+            "topP": 0.8,
+            "maxOutputTokens": 4096,
+        },
+    }
+
+    headers = {
+        "Content-Type": "application/json",
+        "x-goog-api-key": GEMINI_API_KEY,
+    }
+
+    async with httpx.AsyncClient(timeout=180.0) as client:
+        response = await client.post(
+            f"{GEMINI_BASE_URL}/models/{GEMINI_MODEL}:generateContent",
+            headers=headers,
+            json=payload,
+        )
+        response.raise_for_status()
+
+    data = response.json()
+
+    try:
+        parts = data["candidates"][0]["content"]["parts"]
+        result = "".join(part.get("text", "") for part in parts).strip()
+    except (KeyError, IndexError, TypeError):
+        result = ""
+
+    if not result:
+        return (
+            "Gemini returned an empty response. "
+            "Check the model name, API key, quota, and response payload."
         )
 
     return result
@@ -255,21 +392,37 @@ async def run_skill(skill_id: str, user_input: str):
     system_prompt = load_prompt(skill_id)
 
     try:
-        response_text = await call_ollama(
-            system_prompt=system_prompt,
-            user_input=user_input,
-        )
+        if skill_id in LEGAL_SKILL_IDS:
+            try:
+                response_text = await call_gemini(
+                    system_prompt=system_prompt,
+                    user_input=user_input,
+                )
+            except Exception as gemini_error:
+                print("Gemini failed. Falling back to Ollama:", str(gemini_error))
+                response_text = await call_ollama(
+                    system_prompt=system_prompt,
+                    user_input=user_input,
+                )
+        else:
+            response_text = await call_ollama(
+                system_prompt=system_prompt,
+                user_input=user_input,
+            )
     except Exception as error:
+        provider = "Gemini" if skill_id in LEGAL_SKILL_IDS else "Ollama"
+
         response_text = f"""
-Ollama integration failed.
+{provider} integration failed.
 
 Error:
 {str(error)}
 
 Check:
-1. Ollama is running
-2. Model is installed: {OLLAMA_MODEL}
-3. Ollama URL is reachable: {OLLAMA_BASE_URL}
+1. Backend environment variables are configured
+2. API key is valid if using Gemini
+3. Ollama is running if using Ollama
+4. Model is available
 """.strip()
 
     save_skill_run(

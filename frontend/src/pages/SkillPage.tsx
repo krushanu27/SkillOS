@@ -1,5 +1,10 @@
-import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import {
+    Link,
+    useNavigate,
+    useParams,
+    useSearchParams,
+} from "react-router-dom";
 
 import { runSkill } from "../services/skills.api";
 import { uploadFile } from "../services/files.api";
@@ -18,8 +23,36 @@ function applySavedTheme() {
     document.documentElement.setAttribute("data-theme", savedTheme);
 }
 
+function getAgentRecommendedSkillId(response: string): string {
+    const patterns = [
+        /Recommended Skill ID:\s*([a-z0-9_]+)/i,
+        /Skill ID:\s*([a-z0-9_]+)/i,
+    ];
+
+    for (const pattern of patterns) {
+        const match = response.match(pattern);
+
+        if (match?.[1]) {
+            return match[1].trim();
+        }
+    }
+
+    return "";
+}
+
+function getAgentPreparedPrompt(response: string): string {
+    const match = response.match(
+        /Prepared Skill Prompt:\s*([\s\S]*?)(?=\n#|\n[A-Z][A-Za-z ]+:\s*$|$)/i
+    );
+
+    return match?.[1]?.trim() || "";
+}
+
 export default function SkillPage() {
     const { id } = useParams();
+    const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const autoRunStarted = useRef(false);
 
     const [input, setInput] = useState("");
     const [response, setResponse] = useState("");
@@ -33,6 +66,15 @@ export default function SkillPage() {
     const [copied, setCopied] = useState(false);
 
     const isBusy = uploading || running;
+    const isAgentWorkspace = id === "ai_agent_workspace";
+
+    const recommendedSkillId = isAgentWorkspace
+        ? getAgentRecommendedSkillId(response)
+        : "";
+
+    const preparedSkillPrompt = isAgentWorkspace
+        ? getAgentPreparedPrompt(response)
+        : "";
 
     useEffect(() => {
         applySavedTheme();
@@ -57,23 +99,22 @@ export default function SkillPage() {
         loadSkillName();
     }, [id]);
 
-    const handleUpload = async () => {
-        if (!selectedFile) return;
+    const incrementUsageCount = (skillId: string) => {
+        const currentUsageCounts = JSON.parse(
+            localStorage.getItem(SKILL_USAGE_STORAGE_KEY) || "{}"
+        );
 
-        setUploading(true);
-        setNotice("");
+        currentUsageCounts[skillId] =
+            (currentUsageCounts[skillId] || 0) + 1;
 
-        try {
-            const result = await uploadFile(selectedFile);
-            setUploadedFile(result);
-            setNotice("✓ File uploaded successfully.");
-        } finally {
-            setUploading(false);
-        }
+        localStorage.setItem(
+            SKILL_USAGE_STORAGE_KEY,
+            JSON.stringify(currentUsageCounts)
+        );
     };
 
-    const handleRun = async () => {
-        if (!input.trim() && !uploadedFile) return;
+    const executeSkill = async (promptText: string) => {
+        if (!promptText.trim() && !uploadedFile) return;
 
         setRunning(true);
         setResponse("");
@@ -93,27 +134,67 @@ ${uploadedFile.extracted_text || "No readable text extracted from this file."}
 `
                 : "";
 
-            const finalInput = `${input}${fileContext}`;
+            const finalInput = `${promptText}${fileContext}`;
 
             const result = await runSkill(id || "", finalInput);
 
             setResponse(result.response);
             setNotice("✓ Skill executed successfully.");
 
-            const currentUsageCounts = JSON.parse(
-                localStorage.getItem(SKILL_USAGE_STORAGE_KEY) || "{}"
-            );
-
-            currentUsageCounts[id || "unknown"] =
-                (currentUsageCounts[id || "unknown"] || 0) + 1;
-
-            localStorage.setItem(
-                SKILL_USAGE_STORAGE_KEY,
-                JSON.stringify(currentUsageCounts)
-            );
+            incrementUsageCount(id || "unknown");
         } finally {
             setRunning(false);
         }
+    };
+
+    useEffect(() => {
+        const shouldAutoRun = searchParams.get("autoRun") === "true";
+        const promptFromUrl = searchParams.get("prompt") || "";
+
+        if (
+            shouldAutoRun &&
+            promptFromUrl &&
+            id &&
+            !autoRunStarted.current
+        ) {
+            autoRunStarted.current = true;
+            setInput(promptFromUrl);
+            executeSkill(promptFromUrl);
+        }
+    }, [id, searchParams]);
+
+    const handleUpload = async () => {
+        if (!selectedFile) return;
+
+        setUploading(true);
+        setNotice("");
+
+        try {
+            const result = await uploadFile(selectedFile);
+            setUploadedFile(result);
+            setNotice("✓ File uploaded successfully.");
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleRun = async () => {
+        await executeSkill(input);
+    };
+
+    const handleLaunchRecommendedSkill = () => {
+        if (!recommendedSkillId) return;
+
+        const promptToSend =
+            preparedSkillPrompt ||
+            input ||
+            "Continue this task using the recommended SkillOS skill.";
+
+        navigate(
+            `/skill/${recommendedSkillId}?autoRun=true&prompt=${encodeURIComponent(
+                promptToSend
+            )}`
+        );
     };
 
     const handleCopyOutput = async () => {
@@ -135,6 +216,7 @@ ${uploadedFile.extracted_text || "No readable text extracted from this file."}
         setUploadedFile(null);
         setNotice("");
         setCopied(false);
+        autoRunStarted.current = false;
     };
 
     return (
@@ -321,6 +403,32 @@ ${uploadedFile.extracted_text || "No readable text extracted from this file."}
                             </div>
                         ) : response ? (
                             <div className="output-content">
+                                {recommendedSkillId && (
+                                    <div className="agent-launch-panel">
+                                        <div>
+                                            <strong>
+                                                Recommended Skill Ready
+                                            </strong>
+
+                                            <p>
+                                                SkillOS Agent selected{" "}
+                                                <code>
+                                                    {recommendedSkillId}
+                                                </code>
+                                                . Launch it to auto-run the prepared prompt.
+                                            </p>
+                                        </div>
+
+                                        <button
+                                            className="primary-button"
+                                            onClick={handleLaunchRecommendedSkill}
+                                            type="button"
+                                        >
+                                            Launch Recommended Skill →
+                                        </button>
+                                    </div>
+                                )}
+
                                 <pre>{response}</pre>
                             </div>
                         ) : (

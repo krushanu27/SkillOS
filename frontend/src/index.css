@@ -862,6 +862,7 @@ textarea:focus {
   font-size: 12px;
 }
 
+
 @media (max-width: 1024px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -1025,6 +1026,11 @@ textarea:focus {
   }
 }
 
+.agent-launch-panel {
+  flex-direction: column;
+  align-items: stretch;
+}
+
 @media (max-width: 640px) {
   .main-workspace {
     padding: 78px 18px 18px;
@@ -1113,5 +1119,10 @@ textarea:focus {
 
   .compact-skill-count {
     font-size: 12px;
+  }
+
+  .agent-launch-panel {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
